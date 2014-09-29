@@ -390,12 +390,31 @@ public class Options
     public InputSource[] getGrammars() {
         return grammars.toArray(new InputSource[grammars.size()]);
     }
+    
+    private static interface AddInputSource {
+    	public void add(InputSource is);
+    };
+    
+    private final AddInputSource ADD_GRAMMAR = new AddInputSource() {
+		@Override
+		public void add(InputSource is) {
+			Options.this.addGrammar(is);
+		}
+	};
+	
+	 private final AddInputSource ADD_BIND_FILE = new AddInputSource() {
+		@Override
+		public void add(InputSource is) {
+			Options.this.addBindFile(is);
+		}
+	};
 
     /**
      * Adds a new input schema.
      */
     public void addGrammar( InputSource is ) {
-        grammars.add(absolutize(is));
+    	// Fix for JAXB-1044 - resolve after absolutize
+        grammars.add(resolve(absolutize(is)));
     }
 
     private InputSource fileToInputSource( File source ) {
@@ -415,10 +434,10 @@ public class Options
      * Recursively scan directories and add all XSD files in it.
      */
     public void addGrammarRecursive( File dir ) {
-        addRecursive(dir,".xsd",grammars);
+        addRecursive(dir,".xsd",ADD_GRAMMAR);
     }
 
-    private  void addRecursive( File dir, String suffix, List<InputSource> result ) {
+    private  void addRecursive( File dir, String suffix, AddInputSource result ) {
         File[] files = dir.listFiles();
         if(files==null)     return; // work defensively
 
@@ -427,11 +446,38 @@ public class Options
                 addRecursive(f,suffix,result);
             else
             if(f.getPath().endsWith(suffix))
-                result.add(absolutize(fileToInputSource(f)));
+            	// No need to absolutize here, this is done in result
+                result.add(fileToInputSource(f));
         }
     }
 
-    
+    private InputSource resolve(InputSource inputSource) {
+    	// Start fix for JAXB-1044
+    	// Entity resolver is provided and the input source does not provide streams
+    	// Local files will not be resolved
+    	if (entityResolver != null && inputSource.getByteStream() != null && inputSource.getCharacterStream() != null)
+    	{
+    		try {
+    			// Try resolving the public and system id via the entity resolver
+    			final InputSource resolvedInputSource = entityResolver.resolveEntity(inputSource.getPublicId(), inputSource.getSystemId());
+    			if (resolvedInputSource != null)
+    			{
+    				// In case of success get back the original system and public id
+    				// To make all other resolutions work
+    				resolvedInputSource.setPublicId(inputSource.getPublicId());
+					resolvedInputSource.setSystemId(inputSource.getSystemId());
+					inputSource = resolvedInputSource;
+    			}
+    		}
+    		catch(Exception ignored) {
+    			// The exception is ignored in order not
+    			// to change the processing logic
+    		}
+    	}
+    	// End fix for JAXB-1044
+    	return inputSource;
+    }
+
     private InputSource absolutize(InputSource is) {
         // absolutize all the system IDs in the input, so that we can map system IDs to DOM trees.
         try {
@@ -452,7 +498,8 @@ public class Options
      * Adds a new binding file.
      */
     public void addBindFile( InputSource is ) {
-        bindFiles.add(absolutize(is));
+    	// Fix for JAXB-1044 - resolve after absolutize
+        bindFiles.add(resolve(absolutize(is)));
     }
 
     /**
@@ -466,7 +513,7 @@ public class Options
      * Recursively scan directories and add all ".xjb" files in it.
      */
     public void addBindFileRecursive( File dir ) {
-        addRecursive(dir,".xjb",bindFiles);
+        addRecursive(dir,".xjb",ADD_BIND_FILE);
     }
 
     public final List<URL> classpaths = new ArrayList<URL>();
@@ -572,7 +619,7 @@ public class Options
             return 1;
         }
         if (args[i].equals("-b")) {
-            addFile(requireArgument("-b",args,++i),bindFiles,".xjb");
+            addFile(requireArgument("-b",args,++i),ADD_BIND_FILE,".xjb");
             return 2;
         }
         if (args[i].equals("-dtd")) {
@@ -763,7 +810,7 @@ public class Options
      *      If the given token is a directory name, we do a recusive search
      *      and find all files that have the given suffix.
      */
-    private void addFile(String name, List<InputSource> target, String suffix) throws BadCommandLineException {
+    private void addFile(String name, AddInputSource target, String suffix) throws BadCommandLineException {
         Object src;
         try {
             src = Util.getFileOrURL(name);
@@ -772,13 +819,15 @@ public class Options
                 Messages.format(Messages.NOT_A_FILE_NOR_URL,name));
         }
         if(src instanceof URL) {
-            target.add(absolutize(new InputSource(Util.escapeSpace(((URL)src).toExternalForm()))));
+        	// No need to absolutize here, this is done in target
+            target.add(new InputSource(Util.escapeSpace(((URL)src).toExternalForm())));
         } else {
             File fsrc = (File)src;
             if(fsrc.isDirectory()) {
                 addRecursive(fsrc,suffix,target);
             } else {
-                target.add(absolutize(fileToInputSource(fsrc)));
+            	// No need to absolutize here, this is done in target
+                target.add(fileToInputSource(fsrc));
             }
         }
     }
@@ -818,7 +867,7 @@ public class Options
                 if(args[i].endsWith(".jar"))
                     scanEpisodeFile(new File(args[i]));
                 else
-                    addFile(args[i],grammars,".xsd");
+                    addFile(args[i],ADD_GRAMMAR,".xsd");
             }
         }
 

@@ -291,11 +291,14 @@ public final class DOMForest {
         
         InputSource is=null;
         
+        // Start fix for JAXB-1044
+        // This logic is performed in the parse(String, InputSource, boolean) method below
         // allow entity resolver to find the actual byte stream.
-        if( entityResolver!=null )
-            is = entityResolver.resolveEntity(null,systemId);
-        if( is==null )
+//        if( entityResolver!=null )
+//            is = entityResolver.resolveEntity(null,systemId);
+//        if( is==null )
             is = new InputSource(systemId);
+        // End fix for JAXB-1044
         
         // but we still use the original system Id as the key.
         return parse( systemId, is, root );
@@ -390,7 +393,21 @@ public final class DOMForest {
             if(errorReceiver!=null)
                 reader.setErrorHandler(errorReceiver);
             if(entityResolver!=null)
+            {
                 reader.setEntityResolver(entityResolver);
+                // Start fix for JAXB-1044
+                // If input source does not provide streams                
+                if (inputSource.getByteStream() == null && inputSource.getCharacterStream() == null)
+                {
+                	// Try resolving it via entity resolver
+               		InputSource resolvedInputSource = entityResolver.resolveEntity(inputSource.getPublicId(), inputSource.getSystemId());
+               		if (resolvedInputSource != null)
+               		{
+               			inputSource = resolvedInputSource;
+               		}
+                }
+                // End fix for JAXB-1044
+            }
             reader.parse(inputSource);
         } catch( ParserConfigurationException e ) {
             // in practice, this exception won't happen.
