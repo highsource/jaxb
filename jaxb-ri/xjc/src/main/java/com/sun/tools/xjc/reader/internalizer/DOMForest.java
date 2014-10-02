@@ -403,6 +403,22 @@ public final class DOMForest {
                		InputSource resolvedInputSource = entityResolver.resolveEntity(inputSource.getPublicId(), inputSource.getSystemId());
                		if (resolvedInputSource != null)
                		{
+               			// Start fix for JAXB-1046
+               			// When resolving, also put the system id of the resolved input source
+               			// to the map of the documents to allow bindings to address
+               			// the resolved URI.
+               			if (resolvedInputSource.getSystemId() != null)
+               			{
+               				core.put(resolvedInputSource.getSystemId(), dom);
+               			}
+               			// End fix for JAXB-1046
+               			// Start fix for JAXB-1045
+               			// When resolving, we have to retain the original publicId and systemId.
+               			// Otherwise further relative resolutions will apply to the 
+               			// resolved URIs which is not correct.
+               			resolvedInputSource.setPublicId(inputSource.getPublicId());
+               			resolvedInputSource.setSystemId(inputSource.getSystemId());
+               			// End fix for JAXB-1045
                			inputSource = resolvedInputSource;
                		}
                 }

@@ -453,8 +453,19 @@ public final class ModelLoader {
                 // (where DOMForest records trees with their original system IDs.)
                 if(systemId!=null && forest.get(systemId)!=null)
                     return new InputSource(systemId);
-                if(opt.entityResolver!=null)
-                    return opt.entityResolver.resolveEntity(publicId,systemId);
+                if(opt.entityResolver!=null) {
+					InputSource resolvedEntity = opt.entityResolver.resolveEntity(publicId,systemId);
+           			// Start fix for JAXB-1045
+           			// When resolving, we have to retain the original publicId and systemId.
+           			// Otherwise further relative resolutions will apply to the 
+					if (resolvedEntity != null)
+					{
+						resolvedEntity.setPublicId(publicId);
+						resolvedEntity.setSystemId(systemId);
+					}
+					// End fix for JAXB-1045
+                    return resolvedEntity;
+                }
 
                 return null;
             }
