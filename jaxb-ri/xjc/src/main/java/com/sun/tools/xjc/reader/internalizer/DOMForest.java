@@ -281,7 +281,11 @@ public final class DOMForest {
      * 
      * @return the parsed DOM document object.
      */
-    public Document parse( String systemId, boolean root ) throws SAXException, IOException {
+    public Document parse(String systemId, boolean root ) throws SAXException, IOException {
+    	return parse(null, systemId, root);
+    }
+
+    public Document parse(String publicId, String systemId, boolean root ) throws SAXException, IOException {
 
         systemId = Options.normalizeSystemId(systemId);
 
@@ -293,7 +297,7 @@ public final class DOMForest {
         
         // allow entity resolver to find the actual byte stream.
         if( entityResolver!=null )
-            is = entityResolver.resolveEntity(null,systemId);
+            is = entityResolver.resolveEntity(publicId, systemId);
         if( is==null )
             is = new InputSource(systemId);
         

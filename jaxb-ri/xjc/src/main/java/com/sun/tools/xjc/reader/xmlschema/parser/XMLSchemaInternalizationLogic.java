@@ -75,6 +75,15 @@ public class XMLSchemaInternalizationLogic implements InternalizationLogic {
             else
                 return null;
         }
+        
+        protected String findExternalPublicId( String nsURI, String localName, Attributes atts) {
+        	// Use namespace as publicId for imported schemas
+            if( WellKnownNamespace.XML_SCHEMA.equals(nsURI)
+            && ("import".equals(localName) ) )
+                return atts.getValue("namespace");
+            else
+                return null;
+        }
     }
 
     public XMLFilterImpl createExternalReferenceFinder(DOMForest parent) {

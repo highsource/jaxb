@@ -70,6 +70,10 @@ public abstract class AbstractReferenceFinderImpl extends XMLFilterImpl {
         this.parent = _parent;
     }
 
+    protected String findExternalPublicId(String nsURI, String localName, Attributes atts) {
+    	return null;
+    }
+    
     /**
      * IF the given element contains a reference to an external resource,
      * return its URL.
@@ -85,6 +89,7 @@ public abstract class AbstractReferenceFinderImpl extends XMLFilterImpl {
             throws SAXException {
         super.startElement(namespaceURI, localName, qName, atts);
 
+        String publicId = findExternalPublicId(namespaceURI, localName, atts);
         String relativeRef = findExternalResource(namespaceURI, localName, atts);
         if (relativeRef == null) {
             return; // not found
@@ -113,7 +118,7 @@ public abstract class AbstractReferenceFinderImpl extends XMLFilterImpl {
             // then parse this schema as well,
             // but don't mark this document as a root.
             if (parent != null) { // this is there to allow easier testing
-                parent.parse(ref, false);
+                parent.parse(publicId, ref, false);
             }
         } catch (URISyntaxException e) {
             String msg = e.getMessage();
